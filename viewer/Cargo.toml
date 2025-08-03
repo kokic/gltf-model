@@ -1,0 +1,10 @@
+[package]
+name = "viewer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.16" }
+
+[profile.release]
+strip = true
