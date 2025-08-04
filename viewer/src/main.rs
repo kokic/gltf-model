@@ -1,4 +1,8 @@
+use viewer::simple_control;
+
 use bevy::prelude::*;
+
+// use crate::simple_controller::{Player, PlayerCamera};
 
 const MODEL_PATH: &str = "models/pig.gltf";
 
@@ -7,13 +11,21 @@ fn main() {
         // .insert_resource(bevy::pbr::DirectionalLightShadowMap { size: 4096 })
         .insert_resource(AmbientLight {
             color: Color::WHITE,
-            brightness: 2000.,
+            brightness: 2000.0,
             ..default()
         })
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
         .add_systems(Update, setup_scene_once_loaded)
         .add_systems(Update, keyboard_control)
+        .add_systems(
+            Update,
+            (
+                simple_control::cursor_grab_system,
+                simple_control::player_movement_system,
+                simple_control::player_look_system,
+            ),
+        )
         .run();
 }
 
@@ -26,8 +38,8 @@ struct Animations {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    // mut meshes: ResMut<Assets<Mesh>>,
-    // mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     let (graph, node_indices) = AnimationGraph::from_clips([
@@ -43,15 +55,27 @@ fn setup(
         graph_handle,
     });
 
-    // Camera
-    commands.spawn((
-        Camera3d::default(),
-        Transform::from_xyz(-2.0, 2.0, -2.0).looking_at(Vec3::new(0.0, 0.3, 0.0), Vec3::Y),
-    ));
+    simple_control::setup(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        Vec3::new(0.0, 1.0, 0.0),
+    );
+
+    // Fixed Viewport Camera
+    // commands.spawn((
+    //     Camera3d::default(),
+    //     Transform::from_xyz(-2.0, 2.0, -2.0).looking_at(Vec3::new(0.0, 0.3, 0.0), Vec3::Y),
+    // ));
 
     // Light
     commands.spawn((
-        Transform::from_rotation(Quat::from_euler(EulerRot::ZYX, 0.0, 1.0, -std::f32::consts::PI / 4.)),
+        Transform::from_rotation(Quat::from_euler(
+            EulerRot::ZYX,
+            0.0,
+            1.0,
+            -std::f32::consts::PI / 4.,
+        )),
         DirectionalLight {
             shadows_enabled: true,
             ..default()
@@ -84,7 +108,11 @@ fn setup_scene_once_loaded(
         // the animations and will get confused if the animations are started
         // directly via the `AnimationPlayer`.
         transitions
-            .play(&mut player, animations.animations[0], std::time::Duration::ZERO)
+            .play(
+                &mut player,
+                animations.animations[0],
+                std::time::Duration::ZERO,
+            )
             .repeat()
             .set_speed(2.0);
 
@@ -119,5 +147,4 @@ fn keyboard_control(
                 .set_speed(2.0);
         }
     }
-
 }

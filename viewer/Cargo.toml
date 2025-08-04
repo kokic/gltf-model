@@ -5,6 +5,16 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.16" }
+bevy_image = { version = "0.16" }
+# meshm
+bevy_meshem = { git = "https://github.com/Adamkob12/bevy_meshem.git" }
+rand = "0.8.5"
+# voxel world
+bevy_voxel_world = "0.12.0"
+noise = "0.9.0"
+# strum
+strum = "0.27"
+strum_macros = "0.27"
 
 [profile.release]
 strip = true
