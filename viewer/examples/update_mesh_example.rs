@@ -9,10 +9,10 @@ use rand::prelude::*;
 
 use viewer::bindless_material::{BindlessMaterial, MaterialUniforms};
 use viewer::block::BuiltBlockID;
-use viewer::built_block_mesh::BLOCK_TEXTURES;
+use viewer::built_block_mesh::{get_texture, isotropic_mesh, top_bottom_mesh, BLOCK_TEXTURES};
 
-use viewer::gfsc::GpuFeatureSupportChecker;
-use viewer::{built_block_mesh, simple_control};
+use viewer::gpu_fsc::GpuFeatureSupportChecker;
+use viewer::simple_control;
 
 const FACTOR: usize = 8;
 const CHUNK_LEN: usize = FACTOR * FACTOR * FACTOR;
@@ -27,12 +27,14 @@ pub fn main() {
         ));
 
     app.insert_resource(BlockRegistry {
-        // grass_carried: built_block_mesh::isotropic_mesh(0),
-        // grass_side_carried: built_block_mesh::isotropic_mesh(1),
-        grass: built_block_mesh::top_bottom_mesh(0, 2, 1),
-        dirt: built_block_mesh::isotropic_mesh(2),
-        planks_oak: built_block_mesh::isotropic_mesh(3),
-        wool_colored_orange: built_block_mesh::isotropic_mesh(4),
+        grass: top_bottom_mesh(
+            get_texture("grass_carried.png"),
+            get_texture("dirt.png"),
+            get_texture("grass_side_carried.png"),
+        ),
+        dirt: isotropic_mesh(get_texture("dirt.png")),
+        planks_oak: isotropic_mesh(get_texture("planks_oak.png")),
+        wool_colored_orange: isotropic_mesh(get_texture("wool_colored_orange.png")),
     })
     .insert_resource(AmbientLight {
         brightness: 600.0,
@@ -163,8 +165,6 @@ fn setup(
 #[derive(Resource)]
 struct BlockRegistry {
     grass: Mesh,
-    // grass_carried: Mesh,
-    // grass_side_carried: Mesh,
     dirt: Mesh,
     planks_oak: Mesh,
     wool_colored_orange: Mesh,
@@ -175,7 +175,7 @@ impl VoxelRegistry for BlockRegistry {
 
     fn get_mesh(&self, voxel: &Self::Voxel) -> VoxelMesh<&Mesh> {
         match *voxel {
-            BuiltBlockID::Air => VoxelMesh::Null, // air
+            BuiltBlockID::Air => VoxelMesh::Null,
             BuiltBlockID::Dirt => VoxelMesh::NormalCube(&self.dirt),
             BuiltBlockID::Grass => VoxelMesh::NormalCube(&self.grass),
             BuiltBlockID::PlanksOak => VoxelMesh::NormalCube(&self.planks_oak),
@@ -240,20 +240,6 @@ fn mesh_update(
         m.meta.log(VoxelChange::Broken, i, voxel, neighbors);
         update_mesh(mesh, &mut m.meta, breg.into_inner());
         m.grid[i] = BuiltBlockID::Air;
-
-        // match choice {
-        //     (i, _) => {
-        //         m.meta.log(VoxelChange::Broken, i, 1, neighbors);
-        //         update_mesh(mesh, &mut m.meta, breg.into_inner());
-        //         m.grid[i] = 0;
-        //     }
-        //     (i, 0) => {
-        //         m.meta.log(VoxelChange::Added, i, 1, neighbors);
-        //         update_mesh(mesh, &mut m.meta, breg.into_inner());
-        //         m.grid[i] = 1;
-        //     }
-        //     _ => {}
-        // }
         break;
     }
 }

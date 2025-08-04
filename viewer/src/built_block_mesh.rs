@@ -4,13 +4,38 @@ use bevy_meshem::prelude::{
     Face::{Back, Bottom, Forward, Left, Right, Top},
 };
 
-pub const BLOCK_TEXTURES: &[&str] = &[
+macro_rules! define_block_textures {
+    ($($name:literal),* $(,)?) => {
+        pub const BLOCK_TEXTURES: &[&str] = &[$($name),*];
+        
+        #[allow(unused_assignments)]
+        pub fn get_texture_option(name: &str) -> Option<u32> {
+            let mut index = 0;
+            $(
+                if name == $name {
+                    return Some(index);
+                }
+                index += 1;
+            )*
+            None
+        }
+
+        /// Return `missing_tile.png` index if not found
+        pub fn get_texture(name: &str) -> u32 {
+            get_texture_option(name).unwrap_or(0)
+        }
+    };
+}
+
+define_block_textures!(
+    "missing_tile.png", 
     "grass_carried.png",
-    "grass_side_carried.png",
+    "grass_side_carried.png", 
     "dirt.png",
     "planks_oak.png",
     "wool_colored_orange.png",
-];
+);
+
 pub const MAX_BLOCK_TEXTURE_COUNT: usize = BLOCK_TEXTURES.len();
 
 pub type BlockTextureIndex = u32;
