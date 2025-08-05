@@ -26,8 +26,7 @@ pub fn setup(
         })
         .with_children(|parent| {
             parent.spawn((
-                gui_atlas::IconsAtlas::Crosshair
-                    .to_image_node(texture_handle, atlas_layout_handle),
+                gui_atlas::IconsAtlas::Crosshair.to_image_node(texture_handle, atlas_layout_handle),
                 Crosshair,
             ));
         });

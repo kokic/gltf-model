@@ -1,28 +1,28 @@
+// Adapted from: https://github.com/bevyengine/bevy/blob/main/examples/shader/texture_binding_array.rs
+
 use std::num::NonZero;
 
 use bevy::{
     asset::{Asset, Handle},
     ecs::system::{lifetimeless::SRes, SystemParamItem},
-    pbr::Material,
+    pbr::{Material, MaterialPipeline, MaterialPipelineKey},
     reflect::TypePath,
     render::{
-        render_asset::RenderAssets,
-        render_resource::{
+        alpha::AlphaMode, mesh::MeshVertexBufferLayoutRef, render_asset::RenderAssets, render_resource::{
             binding_types::{sampler, texture_2d, uniform_buffer},
             AsBindGroup, AsBindGroupError, BindGroupEntries, BindGroupLayout,
             BindGroupLayoutEntries, BindGroupLayoutEntry, BindingResources, BufferInitDescriptor,
-            BufferUsages, PreparedBindGroup, SamplerBindingType, ShaderRef, ShaderStages,
-            ShaderType, TextureSampleType, UnpreparedBindGroup,
-        },
-        renderer::RenderDevice,
-        texture::{FallbackImage, GpuImage},
+            BufferUsages, PreparedBindGroup, RenderPipelineDescriptor, SamplerBindingType,
+            ShaderRef, ShaderStages, ShaderType, SpecializedMeshPipelineError, TextureSampleType,
+            UnpreparedBindGroup,
+        }, renderer::RenderDevice, texture::{FallbackImage, GpuImage}
     },
 };
 use bevy_image::Image;
 
 use crate::built_block_mesh::MAX_BLOCK_TEXTURE_COUNT;
 
-const SHADER_ASSET_PATH: &str = "texture_binding_array.wgsl";
+const SHADER_ASSET_PATH: &str = "shaders/block_texture_binding_array.wgsl";
 
 #[derive(Clone, Debug)]
 pub struct MaterialUniforms {
@@ -41,6 +41,8 @@ pub struct BindlessMaterial {
     pub textures: Vec<Handle<Image>>,
     pub uniforms: MaterialUniforms,
 }
+
+const BIND_GROUP_INDEX_OFFSET: u32 = 10;
 
 impl AsBindGroup for BindlessMaterial {
     type Data = ();
@@ -84,10 +86,13 @@ impl AsBindGroup for BindlessMaterial {
         let bind_group = render_device.create_bind_group(
             "bindless_material_bind_group",
             layout,
-            &BindGroupEntries::sequential((
-                &textures[..],
-                &fallback_image.sampler,
-                uniform_buffer.as_entire_binding(),
+            &BindGroupEntries::with_indices((
+                (BIND_GROUP_INDEX_OFFSET, &textures[..]),
+                (BIND_GROUP_INDEX_OFFSET + 1, &fallback_image.sampler),
+                (
+                    BIND_GROUP_INDEX_OFFSET + 2,
+                    uniform_buffer.as_entire_binding(),
+                ),
             )),
         );
 
@@ -117,25 +122,21 @@ impl AsBindGroup for BindlessMaterial {
         Self: Sized,
     {
         BindGroupLayoutEntries::with_indices(
-            // The layout entries will only be visible in the fragment stage
             ShaderStages::FRAGMENT,
             (
-                // Screen texture
-                //
-                // @group(2) @binding(0) var textures: binding_array<texture_2d<f32>>;
                 (
-                    0,
+                    BIND_GROUP_INDEX_OFFSET,
                     texture_2d(TextureSampleType::Float { filterable: true })
                         .count(NonZero::<u32>::new(MAX_BLOCK_TEXTURE_COUNT as u32).unwrap()),
                 ),
-                // Sampler
-                //
-                // @group(2) @binding(1) var nearest_sampler: sampler;
-                (1, sampler(SamplerBindingType::Filtering)),
-                // Uniform buffer
-                //
-                // @group(2) @binding(2) var<uniform> material_uniforms: MaterialUniforms;
-                (2, uniform_buffer::<MaterialUniforms>(false)),
+                (
+                    BIND_GROUP_INDEX_OFFSET + 1,
+                    sampler(SamplerBindingType::Filtering),
+                ),
+                (
+                    BIND_GROUP_INDEX_OFFSET + 2,
+                    uniform_buffer::<MaterialUniforms>(false),
+                ),
             ),
         )
         .to_vec()
@@ -145,5 +146,24 @@ impl AsBindGroup for BindlessMaterial {
 impl Material for BindlessMaterial {
     fn fragment_shader() -> ShaderRef {
         SHADER_ASSET_PATH.into()
+    }
+
+    fn alpha_mode(&self) -> AlphaMode {
+        AlphaMode::Opaque
+    }
+
+    fn specialize(
+        _pipeline: &MaterialPipeline<Self>,
+        descriptor: &mut RenderPipelineDescriptor,
+        _layout: &MeshVertexBufferLayoutRef,
+        _key: MaterialPipelineKey<Self>,
+    ) -> Result<(), SpecializedMeshPipelineError> {
+        if let Some(ref mut depth_stencil) = descriptor.depth_stencil {
+            depth_stencil.depth_write_enabled = true;
+        }
+
+        descriptor.primitive.cull_mode = None;
+
+        Ok(())
     }
 }

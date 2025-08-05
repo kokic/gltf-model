@@ -1,150 +1,210 @@
-use viewer::simple_control;
+use std::time::Duration;
 
-use bevy::prelude::*;
-
-// use crate::simple_controller::{Player, PlayerCamera};
-
-const MODEL_PATH: &str = "models/pig.gltf";
+use bevy::{prelude::*, scene::SceneInstanceReady};
+use viewer::{
+    animation::{AnimationConfig, AnimationConfigs, EntityAnimation},
+    components::texture_override::{self},
+    entity::{setup_all_entity_animations, AnimationAssets, EntitySpawner},
+    light,
+    mob::villager::{self, Villager},
+    simple_control,
+};
 
 fn main() {
     App::new()
-        // .insert_resource(bevy::pbr::DirectionalLightShadowMap { size: 4096 })
-        .insert_resource(AmbientLight {
-            color: Color::WHITE,
-            brightness: 2000.0,
-            ..default()
-        })
-        .add_plugins(DefaultPlugins)
-        .add_systems(Startup, setup)
-        .add_systems(Update, setup_scene_once_loaded)
-        .add_systems(Update, keyboard_control)
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_systems(
+            Startup,
+            (
+                light::setup_simple_light,
+                setup_all_entity_animations,
+                setup_scene, 
+            )
+                .chain(),
+        ) // 确保按顺序执行
         .add_systems(
             Update,
             (
                 simple_control::cursor_grab_system,
                 simple_control::player_movement_system,
                 simple_control::player_look_system,
+                update_animations,
             ),
         )
+        .add_observer(texture_override::observe)
+        .add_observer(setup_entity_animation)
         .run();
 }
 
-#[derive(Resource)]
-struct Animations {
-    animations: Vec<AnimationNodeIndex>,
-    graph_handle: Handle<AnimationGraph>,
-}
-
-fn setup(
+fn setup_scene(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
-    let (graph, node_indices) = AnimationGraph::from_clips([
-        asset_server.load(GltfAssetLabel::Animation(0).from_asset(MODEL_PATH)),
-        asset_server.load(GltfAssetLabel::Animation(1).from_asset(MODEL_PATH)),
-    ]);
-
-    // Keep our animation graph in a Resource so that it can be inserted onto
-    // the correct entity once the scene actually loads.
-    let graph_handle = graphs.add(graph);
-    commands.insert_resource(Animations {
-        animations: node_indices,
-        graph_handle,
-    });
-
     simple_control::setup(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Vec3::new(0.0, 1.0, 0.0),
+        Vec3::new(0.0, 1.0, 3.0),
+        Some(Vec3::new(0.0, 1.0, -1.0)),
     );
 
-    // Fixed Viewport Camera
-    // commands.spawn((
-    //     Camera3d::default(),
-    //     Transform::from_xyz(-2.0, 2.0, -2.0).looking_at(Vec3::new(0.0, 0.3, 0.0), Vec3::Y),
-    // ));
+    EntitySpawner::spawn::<Villager>(
+        &mut commands,
+        &asset_server,
+        Transform::from_xyz(2.0, 0.0, 0.0).looking_at(Vec3::new(2.0, 0.0, 1.0), Vec3::Y),
+        Some("villager_blend"),
+    );
 
-    // Light
-    commands.spawn((
-        Transform::from_rotation(Quat::from_euler(
-            EulerRot::ZYX,
-            0.0,
-            1.0,
-            -std::f32::consts::PI / 4.,
-        )),
-        DirectionalLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        bevy::pbr::CascadeShadowConfigBuilder {
-            first_cascade_far_bound: 200.0,
-            maximum_distance: 400.0,
-            ..default()
-        }
-        .build(),
-    ));
+    EntitySpawner::spawn::<Villager>(
+        &mut commands,
+        &asset_server,
+        Transform::from_xyz(0.0, 0.0, 0.0).looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y),
+        Some(villager::ANIMATION_GENERAL),
+    );
 
-    commands.spawn(SceneRoot(
-        asset_server.load(GltfAssetLabel::Scene(0).from_asset(MODEL_PATH)),
-    ));
+    // EntitySpawner::spawn::<Skeleton>(
+    //     &mut commands,
+    //     &asset_server,
+    //     Transform::from_xyz(-2.0, 0.0, 0.0).looking_at(Vec3::new(-2.0, 0.0, 1.0), Vec3::Y),
+    //     Some("skeleton_ride"),
+    // );
 }
 
-// An `AnimationPlayer` is automatically added to the scene when it's ready.
-// When the player is added, start the animation.
-fn setup_scene_once_loaded(
+fn setup_entity_animation(
+    trigger: Trigger<SceneInstanceReady>,
     mut commands: Commands,
-    animations: Res<Animations>,
-    mut players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
+    animation_assets: Res<AnimationAssets>,
+    animation_configs: Res<AnimationConfigs>,
+    mut players: Query<(Entity, &mut AnimationPlayer), Without<EntityAnimation>>,
+    entity_animation: Query<&EntityAnimation>,
+    children: Query<&Children>,
 ) {
-    for (entity, mut player) in &mut players {
-        let mut transitions = AnimationTransitions::new();
+    let Ok(entity_animation) = entity_animation.get(trigger.target()) else {
+        return;
+    };
 
-        // Make sure to start the animation via the `AnimationTransitions`
-        // component. The `AnimationTransitions` component wants to manage all
-        // the animations and will get confused if the animations are started
-        // directly via the `AnimationPlayer`.
-        transitions
-            .play(
-                &mut player,
-                animations.animations[0],
-                std::time::Duration::ZERO,
-            )
-            .repeat()
-            .set_speed(2.0);
+    let Some(config) = animation_configs.0.get(&entity_animation.config_name) else {
+        error!(
+            "Animation config '{}' not found!",
+            entity_animation.config_name
+        );
+        return;
+    };
 
-        commands
-            .entity(entity)
-            .insert(AnimationGraphHandle(animations.graph_handle.clone()))
-            .insert(transitions);
+    for descendant in children.iter_descendants(trigger.target()) {
+        if let Ok((entity, _player)) = players.get_mut(descendant) {
+            commands.entity(entity).insert(entity_animation.clone());
+
+            match config {
+                AnimationConfig::Single { .. } => {
+                    commands
+                        .entity(entity)
+                        .insert(AnimationGraphHandle(animation_assets.basic_graph.clone()));
+                }
+                AnimationConfig::Blend { .. } => {
+                    if let Some((blend_graph_handle, _)) = animation_assets
+                        .blend_graphs
+                        .get(&entity_animation.config_name)
+                    {
+                        commands
+                            .entity(entity)
+                            .insert(AnimationGraphHandle(blend_graph_handle.clone()));
+                    }
+                }
+            }
+
+            debug!(
+                "Setup animation '{}' for entity {:?}",
+                entity_animation.config_name, entity
+            );
+        }
     }
 }
 
-fn keyboard_control(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut animation_players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
-    animations: Res<Animations>,
-    mut current_animation: Local<usize>,
+fn update_animations(
+    mut commands: Commands,
+    animation_assets: Res<AnimationAssets>,
+    animation_configs: Res<AnimationConfigs>,
+    mut players: Query<
+        (Entity, &mut AnimationPlayer, &EntityAnimation),
+        Without<AnimationTransitions>,
+    >,
 ) {
-    for (mut player, mut transitions) in &mut animation_players {
-        // let Some((&playing_animation_index, _)) = player.playing_animations().next() else {
-        //     continue;
-        // };
+    for (entity, mut player, entity_animation) in &mut players {
+        let Some(config) = animation_configs.0.get(&entity_animation.config_name) else {
+            continue;
+        };
 
-        if keyboard_input.just_pressed(KeyCode::Enter) {
-            *current_animation = (*current_animation + 1) % animations.animations.len();
+        match config {
+            AnimationConfig::Single {
+                animation_path,
+                speed,
+                repeat,
+                paused,
+            } => {
+                let Some(&animation_node) = animation_assets.basic_animations.get(animation_path)
+                else {
+                    error!("Animation path '{}' not found!", animation_path);
+                    continue;
+                };
 
-            transitions
-                .play(
-                    &mut player,
-                    animations.animations[*current_animation],
-                    std::time::Duration::from_millis(250),
-                )
-                .repeat()
-                .set_speed(2.0);
+                let mut transitions = AnimationTransitions::new();
+                let animation = transitions.play(&mut player, animation_node, Duration::ZERO);
+
+                animation.set_speed(*speed);
+
+                if *repeat {
+                    animation.repeat();
+                }
+
+                if *paused {
+                    player.pause_all();
+                } else {
+                    player.resume_all();
+                }
+
+                commands.entity(entity).insert(transitions);
+
+                info!(
+                    "Started single animation '{}' (path: {}) for entity {:?} (speed: {}, repeat: {})",
+                    entity_animation.config_name, animation_path, entity, speed, repeat
+                );
+            }
+            AnimationConfig::Blend {
+                speed,
+                repeat,
+                paused,
+                ..
+            } => {
+                if let Some((_, clip_indices)) = animation_assets
+                    .blend_graphs
+                    .get(&entity_animation.config_name)
+                {
+                    for &clip_node_index in clip_indices {
+                        let animation = player.play(clip_node_index);
+                        animation.set_speed(*speed);
+
+                        if *repeat {
+                            animation.repeat();
+                        }
+                    }
+
+                    if *paused {
+                        player.pause_all();
+                    } else {
+                        player.resume_all();
+                    }
+
+                    commands.entity(entity).insert(AnimationTransitions::new());
+
+                    info!(
+                        "Started blend animation '{}' for entity {:?} (speed: {}, repeat: {})",
+                        entity_animation.config_name, entity, speed, repeat
+                    );
+                }
+            }
         }
     }
 }

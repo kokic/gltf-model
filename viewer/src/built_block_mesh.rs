@@ -29,9 +29,10 @@ macro_rules! define_block_textures {
 
 define_block_textures!(
     "missing_tile.png", 
+    "brick.png",
+    "dirt.png",
     "grass_carried.png",
     "grass_side_carried.png", 
-    "dirt.png",
     "planks_oak.png",
     "wool_colored_orange.png",
 );
