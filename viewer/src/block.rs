@@ -1,12 +1,10 @@
-use strum_macros::FromRepr;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, FromRepr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumCount, strum_macros::FromRepr)]
 pub enum BuiltBlockID {
-    Air, 
-    Dirt, 
+    Air,
+    Dirt,
     Grass,
-    PlanksOak, 
-    WoolColoredOrange, 
+    PlanksOak,
+    WoolColoredOrange,
 }
 
 impl BuiltBlockID {
