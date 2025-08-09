@@ -3,13 +3,24 @@ use std::collections::HashMap;
 
 use crate::{
     animation::AnimationConfig,
-    entity::{BlendGraphConfig, EntityConfig},
+    entity::{
+        assembly::{Head, Localizable}, humanoid::Humanoid, BlendGraphConfig,
+        EntityConfig,
+    },
 };
 
 pub struct Villager;
 
-pub const ANIMATION_GENERAL: &str = "villager_general";
-pub const ANIMATION_MOVE: &str = "villager_move";
+pub const ANIMATION_GENERAL: &str = "villager.general";
+pub const ANIMATION_MOVE: &str = "villager.move";
+pub const ANIMATION_GENERAL_MOVE: &str = "villager.general_move";
+pub const ANIMATION_RIDING: &str = "villager.riding";
+
+impl Localizable<Head> for Villager {
+    fn position() -> Vec3 {
+        <Humanoid as Localizable<Head>>::position()
+    }
+}
 
 impl EntityConfig for Villager {
     fn entity_type() -> &'static str {
@@ -17,68 +28,63 @@ impl EntityConfig for Villager {
     }
 
     fn model_path() -> &'static str {
-        "models/villager.gltf#Scene0"
+        "models/villager.gltf"
     }
 
-    fn texture_path() -> &'static str {
-        "images/entity/villager.png"
-    }
-
-    fn animation_paths() -> &'static [(&'static str, &'static str)] {
-        &[
-            (ANIMATION_GENERAL, "models/villager.gltf#Animation2"),
-            (ANIMATION_MOVE, "models/villager.gltf#Animation3"),
-        ]
+    fn texture(asset_server: &AssetServer) -> Option<Handle<Image>> {
+        Some(asset_server.load("images/entity/villager.png"))
     }
 
     fn animation_configs() -> HashMap<String, AnimationConfig> {
-        let mut configs = HashMap::new();
+        [
+            (
+                ANIMATION_GENERAL.to_string(),
+                AnimationConfig::Single {
+                    path: format!("{}#Animation2", Self::model_path()),
+                    speed: 0.0,
+                    repeat: false,
+                    paused: true,
+                },
+            ),
+            (
+                ANIMATION_MOVE.to_string(),
+                AnimationConfig::Single {
+                    path: format!("{}#Animation3", Self::model_path()),
+                    speed: 2.0,
+                    repeat: true,
+                    paused: false,
+                },
+            ),
+            (
+                ANIMATION_RIDING.to_string(),
+                AnimationConfig::Single {
+                    path: format!("{}#Animation4", Self::model_path()),
+                    speed: 0.0,
+                    repeat: false,
+                    paused: true,
+                },
+            ),
+        ]
+        .into_iter()
+        .collect()
+    }
 
-        configs.insert(
-            ANIMATION_GENERAL.to_string(),
-            AnimationConfig::Single {
-                animation_path: ANIMATION_GENERAL.to_string(),
-                speed: 0.0,
-                repeat: false,
-                paused: true,
-            },
-        );
-
-        configs.insert(
-            ANIMATION_MOVE.to_string(),
-            AnimationConfig::Single {
-                animation_path: ANIMATION_MOVE.to_string(),
-                speed: 2.0,
-                repeat: true,
-                paused: false,
-            },
-        );
-
-        configs.insert(
-            "villager_blend".to_string(),
-            AnimationConfig::Blend {
+    fn blend_graph_configs() -> HashMap<String, BlendGraphConfig> {
+        [(
+            ANIMATION_GENERAL_MOVE.to_string(),
+            BlendGraphConfig {
                 animations: vec![
                     (ANIMATION_GENERAL.to_string(), 0.5),
                     (ANIMATION_MOVE.to_string(), 0.5),
                 ],
-                speed: 1.0,
+                blend_factor: 0.5,
+                speed: 2.0,
                 repeat: true,
                 paused: false,
             },
-        );
-
-        configs
-    }
-
-    fn blend_graph_configs() -> Vec<BlendGraphConfig> {
-        vec![BlendGraphConfig {
-            name: "villager_blend".to_string(),
-            animations: vec![
-                (ANIMATION_GENERAL.to_string(), 0.5),
-                (ANIMATION_MOVE.to_string(), 0.5),
-            ],
-            blend_factor: 0.5,
-        }]
+        )]
+        .into_iter()
+        .collect()
     }
 
     fn default_animation() -> &'static str {

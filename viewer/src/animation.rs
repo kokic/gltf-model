@@ -5,7 +5,7 @@ use bevy::ecs::{component::Component, resource::Resource};
 #[derive(Clone, Debug)]
 pub enum AnimationConfig {
     Single {
-        animation_path: String,
+        path: String,
         speed: f32,
         repeat: bool,
         paused: bool,

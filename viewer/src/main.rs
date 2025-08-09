@@ -1,10 +1,15 @@
-use std::time::Duration;
+use std::collections::HashMap;
 
-use bevy::{prelude::*, scene::SceneInstanceReady};
+use bevy::prelude::*;
 use viewer::{
-    animation::{AnimationConfig, AnimationConfigs, EntityAnimation},
-    components::texture_override::{self},
-    entity::{setup_all_entity_animations, AnimationAssets, EntitySpawner},
+    animation::{AnimationConfig, AnimationConfigs},
+    components::texture_override::{self, PreserveOriginalMaterial},
+    entity::{
+        self,
+        animation::AnimationAssets,
+        assembly::{get_assembly_transform, Head, Localizable},
+        EntityConfig, EntitySpawner,
+    },
     light,
     mob::villager::{self, Villager},
     simple_control,
@@ -13,26 +18,22 @@ use viewer::{
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_systems(Startup, light::setup_simple_light)
         .add_systems(
             Startup,
-            (
-                light::setup_simple_light,
-                setup_all_entity_animations,
-                setup_scene, 
-            )
-                .chain(),
-        ) // 确保按顺序执行
+            (setup_all_entity_animations, setup_scene).chain(),
+        )
         .add_systems(
             Update,
             (
                 simple_control::cursor_grab_system,
                 simple_control::player_movement_system,
                 simple_control::player_look_system,
-                update_animations,
+                entity::animation::update_animations,
             ),
         )
         .add_observer(texture_override::observe)
-        .add_observer(setup_entity_animation)
+        .add_observer(entity::animation::setup_entity_animation)
         .run();
 }
 
@@ -50,161 +51,152 @@ fn setup_scene(
         Some(Vec3::new(0.0, 1.0, -1.0)),
     );
 
-    EntitySpawner::spawn::<Villager>(
+    EntitySpawner::spawn::<Pig>(
         &mut commands,
         &asset_server,
-        Transform::from_xyz(2.0, 0.0, 0.0).looking_at(Vec3::new(2.0, 0.0, 1.0), Vec3::Y),
-        Some("villager_blend"),
-    );
+        Transform::from_xyz(2.0, 0.0, 0.0)
+            .looking_at(Vec3::new(2.0, 0.0, 1.0), Vec3::Y),
+        None,
+    )
+    .with_children(|parent| {
+        EntitySpawner::spawn_child::<Villager>(
+            parent,
+            &asset_server,
+            Transform::from_xyz(0.0, 0.127, 0.25),
+            Some(villager::ANIMATION_RIDING),
+        )
+        .with_children(|parent| {
+            EntitySpawner::spawn_child::<WitchHat>(
+                parent,
+                &asset_server,
+                Transform::default(),
+                None,
+            )
+            .insert(PreserveOriginalMaterial);
+        });
+
+        EntitySpawner::spawn_child::<WitchHat>(
+            parent,
+            &asset_server,
+            get_assembly_transform::<Pig, Head, WitchHat, Head>(),
+            Some("hide_nose"),
+        )
+        .insert(PreserveOriginalMaterial);
+    });
 
     EntitySpawner::spawn::<Villager>(
         &mut commands,
         &asset_server,
-        Transform::from_xyz(0.0, 0.0, 0.0).looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y),
-        Some(villager::ANIMATION_GENERAL),
-    );
+        Transform::from_xyz(10.0, 0.0, 0.0)
+            .looking_at(Vec3::new(2.0, 0.0, 1.0), Vec3::Y),
+        Some(Villager::default_animation()),
+    )
+    .with_children(|parent| {
+        EntitySpawner::spawn_child::<WitchHat>(
+            parent,
+            &asset_server,
+            get_assembly_transform::<Villager, Head, WitchHat, Head>(),
+            None,
+        )
+        .insert(PreserveOriginalMaterial);
+    });
 
-    // EntitySpawner::spawn::<Skeleton>(
-    //     &mut commands,
-    //     &asset_server,
-    //     Transform::from_xyz(-2.0, 0.0, 0.0).looking_at(Vec3::new(-2.0, 0.0, 1.0), Vec3::Y),
-    //     Some("skeleton_ride"),
-    // );
+    
 }
 
-fn setup_entity_animation(
-    trigger: Trigger<SceneInstanceReady>,
+pub fn setup_all_entity_animations(
     mut commands: Commands,
-    animation_assets: Res<AnimationAssets>,
-    animation_configs: Res<AnimationConfigs>,
-    mut players: Query<(Entity, &mut AnimationPlayer), Without<EntityAnimation>>,
-    entity_animation: Query<&EntityAnimation>,
-    children: Query<&Children>,
+    asset_server: Res<AssetServer>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
-    let Ok(entity_animation) = entity_animation.get(trigger.target()) else {
-        return;
-    };
+    let mut animation_assets = AnimationAssets::new();
+    let mut animation_configs = HashMap::new();
 
-    let Some(config) = animation_configs.0.get(&entity_animation.config_name) else {
-        error!(
-            "Animation config '{}' not found!",
-            entity_animation.config_name
-        );
-        return;
-    };
+    Villager::register_animations(
+        &asset_server,
+        &mut graphs,
+        &mut animation_assets,
+        &mut animation_configs,
+    );
 
-    for descendant in children.iter_descendants(trigger.target()) {
-        if let Ok((entity, _player)) = players.get_mut(descendant) {
-            commands.entity(entity).insert(entity_animation.clone());
+    WitchHat::register_animations(
+        &asset_server,
+        &mut graphs,
+        &mut animation_assets,
+        &mut animation_configs,
+    );
 
-            match config {
-                AnimationConfig::Single { .. } => {
-                    commands
-                        .entity(entity)
-                        .insert(AnimationGraphHandle(animation_assets.basic_graph.clone()));
-                }
-                AnimationConfig::Blend { .. } => {
-                    if let Some((blend_graph_handle, _)) = animation_assets
-                        .blend_graphs
-                        .get(&entity_animation.config_name)
-                    {
-                        commands
-                            .entity(entity)
-                            .insert(AnimationGraphHandle(blend_graph_handle.clone()));
-                    }
-                }
-            }
+    Pig::register_animations(
+        &asset_server,
+        &mut graphs,
+        &mut animation_assets,
+        &mut animation_configs,
+    );
 
-            debug!(
-                "Setup animation '{}' for entity {:?}",
-                entity_animation.config_name, entity
-            );
-        }
+    animation_assets.finalize_basic_graph(&mut graphs);
+
+    commands.insert_resource(animation_assets);
+    commands.insert_resource(AnimationConfigs(animation_configs));
+}
+
+struct Pig;
+
+impl EntityConfig for Pig {
+    fn entity_type() -> &'static str {
+        "pig"
+    }
+
+    fn model_path() -> &'static str {
+        "models/with_textures/pig.gltf"
+    }
+
+    fn texture(_: &AssetServer) -> Option<Handle<Image>> {
+        None
+    }
+
+    fn animation_configs() -> HashMap<String, AnimationConfig> {
+        HashMap::new()
     }
 }
 
-fn update_animations(
-    mut commands: Commands,
-    animation_assets: Res<AnimationAssets>,
-    animation_configs: Res<AnimationConfigs>,
-    mut players: Query<
-        (Entity, &mut AnimationPlayer, &EntityAnimation),
-        Without<AnimationTransitions>,
-    >,
-) {
-    for (entity, mut player, entity_animation) in &mut players {
-        let Some(config) = animation_configs.0.get(&entity_animation.config_name) else {
-            continue;
-        };
+impl Localizable<Head> for Pig {
+    fn position() -> Vec3 {
+        Vec3::new(-4.0, 8.0, -14.0)
+    }
+}
 
-        match config {
+struct WitchHat;
+
+impl EntityConfig for WitchHat {
+    fn entity_type() -> &'static str {
+        "witch_hat"
+    }
+
+    fn model_path() -> &'static str {
+        "models/with_textures/witch_hat.gltf"
+    }
+
+    fn texture(_: &AssetServer) -> Option<Handle<Image>> {
+        None
+    }
+
+    fn animation_configs() -> HashMap<String, AnimationConfig> {
+        [(
+            "hide_nose".to_string(),
             AnimationConfig::Single {
-                animation_path,
-                speed,
-                repeat,
-                paused,
-            } => {
-                let Some(&animation_node) = animation_assets.basic_animations.get(animation_path)
-                else {
-                    error!("Animation path '{}' not found!", animation_path);
-                    continue;
-                };
+                path: format!("{}#Animation0", Self::model_path()),
+                speed: 0.0,
+                repeat: false,
+                paused: true,
+            },
+        )]
+        .into_iter()
+        .collect()
+    }
+}
 
-                let mut transitions = AnimationTransitions::new();
-                let animation = transitions.play(&mut player, animation_node, Duration::ZERO);
-
-                animation.set_speed(*speed);
-
-                if *repeat {
-                    animation.repeat();
-                }
-
-                if *paused {
-                    player.pause_all();
-                } else {
-                    player.resume_all();
-                }
-
-                commands.entity(entity).insert(transitions);
-
-                info!(
-                    "Started single animation '{}' (path: {}) for entity {:?} (speed: {}, repeat: {})",
-                    entity_animation.config_name, animation_path, entity, speed, repeat
-                );
-            }
-            AnimationConfig::Blend {
-                speed,
-                repeat,
-                paused,
-                ..
-            } => {
-                if let Some((_, clip_indices)) = animation_assets
-                    .blend_graphs
-                    .get(&entity_animation.config_name)
-                {
-                    for &clip_node_index in clip_indices {
-                        let animation = player.play(clip_node_index);
-                        animation.set_speed(*speed);
-
-                        if *repeat {
-                            animation.repeat();
-                        }
-                    }
-
-                    if *paused {
-                        player.pause_all();
-                    } else {
-                        player.resume_all();
-                    }
-
-                    commands.entity(entity).insert(AnimationTransitions::new());
-
-                    info!(
-                        "Started blend animation '{}' for entity {:?} (speed: {}, repeat: {})",
-                        entity_animation.config_name, entity, speed, repeat
-                    );
-                }
-            }
-        }
+impl Localizable<Head> for WitchHat {
+    fn position() -> Vec3 {
+        Vec3::new(-4.0, 24.0, -4.0)
     }
 }
