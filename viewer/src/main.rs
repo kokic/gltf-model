@@ -100,9 +100,20 @@ fn setup_scene(
         )
         .insert(PreserveOriginalMaterial);
     });
-
-    
 }
+
+type RegisterAnimationsFn = fn(
+    &AssetServer,
+    &mut Assets<AnimationGraph>,
+    &mut AnimationAssets,
+    &mut HashMap<String, AnimationConfig>,
+);
+
+const REGISTER_ANIMATIONS: &[RegisterAnimationsFn] = &[
+    Villager::register_animations,
+    Pig::register_animations,
+    WitchHat::register_animations,
+];
 
 pub fn setup_all_entity_animations(
     mut commands: Commands,
@@ -112,26 +123,14 @@ pub fn setup_all_entity_animations(
     let mut animation_assets = AnimationAssets::new();
     let mut animation_configs = HashMap::new();
 
-    Villager::register_animations(
-        &asset_server,
-        &mut graphs,
-        &mut animation_assets,
-        &mut animation_configs,
-    );
-
-    WitchHat::register_animations(
-        &asset_server,
-        &mut graphs,
-        &mut animation_assets,
-        &mut animation_configs,
-    );
-
-    Pig::register_animations(
-        &asset_server,
-        &mut graphs,
-        &mut animation_assets,
-        &mut animation_configs,
-    );
+    for register_fn in REGISTER_ANIMATIONS {
+        register_fn(
+            &asset_server,
+            &mut graphs,
+            &mut animation_assets,
+            &mut animation_configs,
+        );
+    }
 
     animation_assets.finalize_basic_graph(&mut graphs);
 
