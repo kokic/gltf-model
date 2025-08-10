@@ -2,61 +2,10 @@ pub mod animation;
 pub mod assembly;
 pub mod humanoid;
 
-use bevy::ecs::system::EntityCommands;
-use bevy::{ecs::relationship::RelatedSpawnerCommands, prelude::*};
+use bevy::prelude::*;
 use std::collections::HashMap;
 
-use crate::{
-    animation::{AnimationConfig, EntityAnimation},
-    components::texture_override::TextureOverride,
-    entity::animation::AnimationAssets,
-};
-
-pub struct EntitySpawner;
-
-impl EntitySpawner {
-    pub fn spawn<'a, E: EntityData>(
-        entity: E,
-        commands: &'a mut Commands,
-        asset_server: &AssetServer,
-        transform: Transform,
-        animation_config: Option<&str>,
-    ) -> EntityCommands<'a> {
-        let mut entity_commands =
-            commands.spawn((transform, SceneRoot(entity.scene(asset_server))));
-
-        if let Some(texture) = entity.texture(asset_server) {
-            entity_commands.insert(TextureOverride(texture));
-        }
-
-        if let Some(animation_name) = animation_config {
-            entity_commands.insert(EntityAnimation::new(animation_name));
-        }
-
-        entity_commands
-    }
-
-    pub fn spawn_child<'a, E: EntityData>(
-        entity: E,
-        parent: &'a mut RelatedSpawnerCommands<ChildOf>,
-        asset_server: &AssetServer,
-        transform: Transform,
-        animation_config: Option<&str>,
-    ) -> EntityCommands<'a> {
-        let mut entity_commands =
-            parent.spawn((transform, SceneRoot(entity.scene(asset_server))));
-
-        if let Some(texture) = entity.texture(asset_server) {
-            entity_commands.insert(TextureOverride(texture));
-        }
-
-        if let Some(animation_name) = animation_config {
-            entity_commands.insert(EntityAnimation::new(animation_name));
-        }
-
-        entity_commands
-    }
-}
+use crate::{animation::AnimationConfig, entity::animation::AnimationAssets};
 
 pub trait EntityData {
     fn entity_type() -> &'static str;

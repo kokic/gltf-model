@@ -88,11 +88,11 @@ pub fn setup_entity_animation(
         return;
     };
 
-    let Some(config) = animation_configs.0.get(&entity_animation.config_name)
+    let Some(config) = animation_configs.0.get(&entity_animation.0)
     else {
         error!(
             "Animation config '{}' not found!",
-            entity_animation.config_name
+            entity_animation.0
         );
         return;
     };
@@ -110,7 +110,7 @@ pub fn setup_entity_animation(
                 AnimationConfig::Blend { .. } => {
                     if let Some((blend_graph_handle, _)) = animation_assets
                         .blend_graphs
-                        .get(&entity_animation.config_name)
+                        .get(&entity_animation.0)
                     {
                         commands.entity(entity).insert(AnimationGraphHandle(
                             blend_graph_handle.clone(),
@@ -121,7 +121,7 @@ pub fn setup_entity_animation(
 
             debug!(
                 "Setup animation '{}' for entity {:?}",
-                entity_animation.config_name, entity
+                entity_animation.0, entity
             );
         }
     }
@@ -138,7 +138,7 @@ pub fn update_animations(
 ) {
     for (entity, mut player, entity_animation) in &mut players {
         let Some(config) =
-            animation_configs.0.get(&entity_animation.config_name)
+            animation_configs.0.get(&entity_animation.0)
         else {
             continue;
         };
@@ -152,11 +152,11 @@ pub fn update_animations(
             } => {
                 let Some(&animation_node) = animation_assets
                     .basic_animations
-                    .get(&entity_animation.config_name)
+                    .get(&entity_animation.0)
                 else {
                     error!(
                         "Animation '{}' not found in basic_animations! Available: {:?}",
-                        entity_animation.config_name,
+                        entity_animation.0,
                         animation_assets.basic_animations.keys().collect::<Vec<_>>()
                     );
                     continue;
@@ -185,7 +185,7 @@ pub fn update_animations(
 
                 info!(
                     "Started single animation '{}' for entity {:?} (speed: {}, repeat: {})",
-                    entity_animation.config_name, entity, speed, repeat
+                    entity_animation.0, entity, speed, repeat
                 );
             }
             AnimationConfig::Blend {
@@ -196,7 +196,7 @@ pub fn update_animations(
             } => {
                 if let Some((_, clip_indices)) = animation_assets
                     .blend_graphs
-                    .get(&entity_animation.config_name)
+                    .get(&entity_animation.0)
                 {
                     for &clip_node_index in clip_indices {
                         let animation = player.play(clip_node_index);
@@ -217,7 +217,7 @@ pub fn update_animations(
 
                     info!(
                         "Started blend animation '{}' for entity {:?} (speed: {}, repeat: {})",
-                        entity_animation.config_name, entity, speed, repeat
+                        entity_animation.0, entity, speed, repeat
                     );
                 }
             }

@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 use viewer::{
-    animation::{AnimationConfig, AnimationConfigs},
-    components::texture_override::{self, PreserveOriginalMaterial},
+    animation::{AnimationConfig, AnimationConfigs, EntityAnimation},
+    components::texture_override::{self, TextureOverride},
     entity::{
         self,
         animation::AnimationAssets,
         assembly::{get_assembly_transform, Head, Localizable},
-        AnimationData, EntityData, EntitySpawner,
+        AnimationData, EntityData,
     },
     light,
     mob::villager::{self, Villager},
@@ -51,69 +51,46 @@ fn setup_scene(
         Some(Vec3::new(0.0, 1.0, -1.0)),
     );
 
-    EntitySpawner::spawn(
-        Pig,
-        &mut commands,
-        &asset_server,
-        Transform::from_xyz(2.0, 0.0, 0.0)
-            .looking_at(Vec3::new(2.0, 0.0, 1.0), Vec3::Y),
-        None,
-    )
-    .with_children(|parent| {
-        EntitySpawner::spawn_child(
-            Villager, 
-            parent,
-            &asset_server,
-            Transform::from_xyz(0.0, 0.127, 0.25),
-            Some(villager::ANIMATION_RIDING),
-        )
+    let pig = Pig;
+    let villager = Villager;
+    let witch_hat = WitchHat;
+
+    commands
+        .spawn((
+            Transform::from_xyz(2.0, 0.0, 0.0)
+                .looking_at(Vec3::new(2.0, 0.0, 1.0), Vec3::Y),
+            TextureOverride(pig.texture(&asset_server)),
+            SceneRoot(pig.scene(&asset_server)),
+        ))
         .with_children(|parent| {
-            EntitySpawner::spawn_child(
-                WitchHat, 
-                parent,
-                &asset_server,
-                Transform::default(),
-                None,
-            )
-            .insert(PreserveOriginalMaterial);
+            parent
+                .spawn((
+                    Transform::from_xyz(0.0, 0.127, 0.25),
+                    TextureOverride(villager.texture(&asset_server)),
+                    SceneRoot(villager.scene(&asset_server)),
+                    EntityAnimation(villager::ANIMATION_RIDING.to_string()),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        Transform::default(),
+                        TextureOverride(witch_hat.texture(&asset_server)),
+                        SceneRoot(witch_hat.scene(&asset_server)),
+                    ));
+                });
+            parent.spawn((
+                get_assembly_transform::<Pig, Head, WitchHat, Head>(),
+                TextureOverride(witch_hat.texture(&asset_server)),
+                SceneRoot(witch_hat.scene(&asset_server)),
+            ));
         });
 
-        EntitySpawner::spawn_child(
-            WitchHat, 
-            parent,
-            &asset_server,
-            get_assembly_transform::<Pig, Head, WitchHat, Head>(),
-            Some("hide_nose"),
-        )
-        .insert(PreserveOriginalMaterial);
-    });
+    let apple = DroppingItem { item: "apple" };
 
-    EntitySpawner::spawn(
-        DroppingItem { item: "apple" },
-        &mut commands,
-        &asset_server,
+    commands.spawn((
         Transform::from_xyz(0.0, 1.0, 0.0),
-        None,
-    );
-
-    EntitySpawner::spawn(
-        Villager, 
-        &mut commands,
-        &asset_server,
-        Transform::from_xyz(10.0, 0.0, 0.0)
-            .looking_at(Vec3::new(2.0, 0.0, 1.0), Vec3::Y),
-        Some(Villager::default_animation()),
-    )
-    .with_children(|parent| {
-        EntitySpawner::spawn_child(
-            WitchHat, 
-            parent,
-            &asset_server,
-            get_assembly_transform::<Villager, Head, WitchHat, Head>(),
-            None,
-        )
-        .insert(PreserveOriginalMaterial);
-    });
+        TextureOverride(apple.texture(&asset_server)),
+        SceneRoot(apple.scene(&asset_server)),
+    ));
 }
 
 type RegisterAnimationsFn = fn(
@@ -152,7 +129,7 @@ pub fn setup_all_entity_animations(
 type ItemID = &'static str;
 
 struct DroppingItem {
-    item: ItemID, 
+    item: ItemID,
 }
 
 impl EntityData for DroppingItem {
@@ -177,7 +154,11 @@ impl EntityData for Pig {
     }
 
     fn model_path() -> &'static str {
-        "models/with_textures/pig.gltf"
+        "models/pig.gltf"
+    }
+
+    fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
+        Some(asset_server.load("images/entity/pig.png"))
     }
 }
 
@@ -202,6 +183,10 @@ impl EntityData for WitchHat {
 
     fn model_path() -> &'static str {
         "models/with_textures/witch_hat.gltf"
+    }
+
+    fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
+        Some(asset_server.load("images/entity/witch.png"))
     }
 }
 
