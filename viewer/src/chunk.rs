@@ -22,7 +22,7 @@ use bevy_meshem::{
 
 use crate::{
     bindless_material::{BindlessMaterial, MaterialUniforms},
-    block::{BlockRegistry, BuiltBlockID}, raycast::precise_minecraft_raycast,
+    block::{BlockRegistry, BuiltBlockID},
 };
 
 const SIZE: usize = 8;
@@ -67,7 +67,12 @@ impl WorldPos {
 }
 
 impl ChunkPos {
-    pub fn to_world_pos(self, local_x: usize, local_y: usize, local_z: usize) -> WorldPos {
+    pub fn to_world_pos(
+        self,
+        local_x: usize,
+        local_y: usize,
+        local_z: usize,
+    ) -> WorldPos {
         WorldPos {
             x: self.x * SIZE as i32 + local_x as i32,
             y: self.y * SIZE as i32 + local_y as i32,
@@ -112,7 +117,7 @@ impl World {
         block_textures: &[Handle<Image>],
     ) -> bool {
         let chunk_pos = world_pos.to_chunk_pos();
-        
+
         if !self.chunks.contains_key(&chunk_pos) {
             self.create_chunk_now(
                 commands,
@@ -123,7 +128,7 @@ impl World {
                 block_textures,
             );
         }
-        
+
         self.set_block_in_chunk(world_pos, block, chunks)
     }
 
@@ -144,7 +149,7 @@ impl World {
             breg,
             chunk_pos,
             block_textures,
-            None
+            None,
         );
     }
 
@@ -166,7 +171,11 @@ impl World {
         false
     }
 
-    pub fn get_block(&self, world_pos: WorldPos, chunks: &Query<&mut Chunk>) -> BuiltBlockID {
+    pub fn get_block(
+        &self,
+        world_pos: WorldPos,
+        chunks: &Query<&mut Chunk>,
+    ) -> BuiltBlockID {
         let chunk_pos = world_pos.to_chunk_pos();
         if let Some(&chunk_entity) = self.chunks.get(&chunk_pos) {
             if let Ok(chunk) = chunks.get(chunk_entity) {

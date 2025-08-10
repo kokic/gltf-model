@@ -1,16 +1,9 @@
 use bevy::{
-    color::Color,
-    ecs::{
+    color::Color, ecs::{
         query::With,
         resource::Resource,
         system::{Query, Res, ResMut},
-    },
-    gizmos::gizmos::Gizmos,
-    input::{mouse::MouseButton, ButtonInput},
-    math::{Vec2, Vec3},
-    render::camera::Camera,
-    transform::components::GlobalTransform,
-    window::Window,
+    }, gizmos::gizmos::Gizmos, log::debug, math::{Vec2, Vec3}, render::camera::Camera, transform::components::GlobalTransform, window::Window
 };
 
 use crate::{
@@ -31,7 +24,6 @@ pub struct RaycastDebugInfo {
 pub fn update_outline_box(
     camera_query: Query<(&GlobalTransform, &Camera), With<PlayerCamera>>,
     mut gizmos: Gizmos,
-    mouse_input: Res<ButtonInput<MouseButton>>,
     world: Res<World>,
     chunks: Query<&mut Chunk>,
     windows: Query<&Window>,
@@ -81,7 +73,11 @@ pub fn voxel_raycast(
         .map(|hit| hit.position)
 }
 
-fn draw_precise_block_outline(gizmos: &mut Gizmos, block_pos: WorldPos, color: Color) {
+fn draw_precise_block_outline(
+    gizmos: &mut Gizmos,
+    block_pos: WorldPos,
+    color: Color,
+) {
     let min = Vec3::new(
         block_pos.x as f32 - 0.5,
         block_pos.y as f32 - 0.5,
@@ -180,7 +176,9 @@ pub fn get_camera_ray(
 ) -> Option<(Vec3, Vec3)> {
     let screen_center = Vec2::new(window.width() / 2.0, window.height() / 2.0);
 
-    if let Ok(viewport_ray) = camera.viewport_to_world(camera_transform, screen_center) {
+    if let Ok(viewport_ray) =
+        camera.viewport_to_world(camera_transform, screen_center)
+    {
         let ray_origin = camera_transform.translation();
         let ray_direction = viewport_ray.direction.normalize();
         return Some((ray_origin, ray_direction));
@@ -208,10 +206,12 @@ pub fn precise_minecraft_raycast(
 
     let start_pos = WorldPos { x, y, z };
     if world.get_block(start_pos, chunks) != BuiltBlockID::Air {
-        let hit_point = calculate_precise_hit_point(ray_origin, ray_direction, start_pos);
-        let face_normal = calculate_hit_face_normal(ray_origin, ray_direction, start_pos);
+        let hit_point =
+            calculate_precise_hit_point(ray_origin, ray_direction, start_pos);
+        let face_normal =
+            calculate_hit_face_normal(ray_origin, ray_direction, start_pos);
         let face = determine_hit_face(ray_origin, ray_direction, start_pos);
-        
+
         return Some(RaycastHit {
             position: start_pos,
             hit_point,
@@ -268,13 +268,13 @@ pub fn precise_minecraft_raycast(
 
     let mut distance = 0.0;
     let max_distance_f64 = max_distance as f64;
-    
+
     let max_iterations = (max_distance * 2.0) as i32 + 100;
     let mut iteration_count = 0;
-    
+
     while distance < max_distance_f64 && iteration_count < max_iterations {
         iteration_count += 1;
-        
+
         if max_x < max_y && max_x < max_z {
             x += step_x;
             distance = max_x;
@@ -292,9 +292,18 @@ pub fn precise_minecraft_raycast(
         let current_pos = WorldPos { x, y, z };
 
         if world.get_block(current_pos, chunks) != BuiltBlockID::Air {
-            let hit_point = calculate_precise_hit_point(ray_origin, ray_direction, current_pos);
-            let face_normal = calculate_hit_face_normal(ray_origin, ray_direction, current_pos);
-            let face = determine_hit_face(ray_origin, ray_direction, current_pos);
+            let hit_point = calculate_precise_hit_point(
+                ray_origin,
+                ray_direction,
+                current_pos,
+            );
+            let face_normal = calculate_hit_face_normal(
+                ray_origin,
+                ray_direction,
+                current_pos,
+            );
+            let face =
+                determine_hit_face(ray_origin, ray_direction, current_pos);
 
             return Some(RaycastHit {
                 position: current_pos,
@@ -309,7 +318,11 @@ pub fn precise_minecraft_raycast(
     None
 }
 
-fn calculate_precise_hit_point(ray_origin: Vec3, ray_direction: Vec3, block_pos: WorldPos) -> Vec3 {
+fn calculate_precise_hit_point(
+    ray_origin: Vec3,
+    ray_direction: Vec3,
+    block_pos: WorldPos,
+) -> Vec3 {
     let block_min = Vec3::new(
         block_pos.x as f32 - 0.5,
         block_pos.y as f32 - 0.5,
@@ -318,13 +331,13 @@ fn calculate_precise_hit_point(ray_origin: Vec3, ray_direction: Vec3, block_pos:
     let block_max = block_min + Vec3::ONE;
 
     let direction = ray_direction.normalize();
-    
+
     let epsilon = 1e-6f32;
 
     let mut t_min = f32::NEG_INFINITY;
     let mut t_max = f32::INFINITY;
-    let mut hit_face_axis = 0;
-    let mut hit_face_sign = 1.0;
+    // let mut hit_face_axis = 0;
+    // let mut hit_face_sign = 1.0;
 
     for i in 0..3 {
         let ray_origin_i = ray_origin[i];
@@ -341,16 +354,16 @@ fn calculate_precise_hit_point(ray_origin: Vec3, ray_direction: Vec3, block_pos:
             let mut t1 = (box_min_i - ray_origin_i) * inv_dir;
             let mut t2 = (box_max_i - ray_origin_i) * inv_dir;
 
-            let mut face_sign = -1.0;
+            // let mut face_sign = -1.0;
             if t1 > t2 {
                 std::mem::swap(&mut t1, &mut t2);
-                face_sign = 1.0;
+                // face_sign = 1.0;
             }
 
             if t1 > t_min {
                 t_min = t1;
-                hit_face_axis = i;
-                hit_face_sign = face_sign;
+                // hit_face_axis = i;
+                // hit_face_sign = face_sign;
             }
             t_max = t_max.min(t2);
 
@@ -364,23 +377,45 @@ fn calculate_precise_hit_point(ray_origin: Vec3, ray_direction: Vec3, block_pos:
     if t >= 0.0 {
         ray_origin + direction * t
     } else {
-        let block_center = Vec3::new(block_pos.x as f32, block_pos.y as f32, block_pos.z as f32);
+        let block_center = Vec3::new(
+            block_pos.x as f32,
+            block_pos.y as f32,
+            block_pos.z as f32,
+        );
         let offset = ray_origin - block_center;
-        
+
         let abs_offset = offset.abs();
         if abs_offset.x >= abs_offset.y && abs_offset.x >= abs_offset.z {
-            Vec3::new(block_center.x + 0.5 * offset.x.signum(), ray_origin.y, ray_origin.z)
+            Vec3::new(
+                block_center.x + 0.5 * offset.x.signum(),
+                ray_origin.y,
+                ray_origin.z,
+            )
         } else if abs_offset.y >= abs_offset.z {
-            Vec3::new(ray_origin.x, block_center.y + 0.5 * offset.y.signum(), ray_origin.z)
+            Vec3::new(
+                ray_origin.x,
+                block_center.y + 0.5 * offset.y.signum(),
+                ray_origin.z,
+            )
         } else {
-            Vec3::new(ray_origin.x, ray_origin.y, block_center.z + 0.5 * offset.z.signum())
+            Vec3::new(
+                ray_origin.x,
+                ray_origin.y,
+                block_center.z + 0.5 * offset.z.signum(),
+            )
         }
     }
 }
 
-fn calculate_hit_face_normal(ray_origin: Vec3, ray_direction: Vec3, block_pos: WorldPos) -> Vec3 {
-    let hit_point = calculate_precise_hit_point(ray_origin, ray_direction, block_pos);
-    let block_center = Vec3::new(block_pos.x as f32, block_pos.y as f32, block_pos.z as f32);
+fn calculate_hit_face_normal(
+    ray_origin: Vec3,
+    ray_direction: Vec3,
+    block_pos: WorldPos,
+) -> Vec3 {
+    let hit_point =
+        calculate_precise_hit_point(ray_origin, ray_direction, block_pos);
+    let block_center =
+        Vec3::new(block_pos.x as f32, block_pos.y as f32, block_pos.z as f32);
 
     let offset = hit_point - block_center;
     let tolerance = 0.001;
@@ -396,8 +431,13 @@ fn calculate_hit_face_normal(ray_origin: Vec3, ray_direction: Vec3, block_pos: W
     }
 }
 
-fn determine_hit_face(ray_origin: Vec3, ray_direction: Vec3, block_pos: WorldPos) -> HitFace {
-    let normal = calculate_hit_face_normal(ray_origin, ray_direction, block_pos);
+fn determine_hit_face(
+    ray_origin: Vec3,
+    ray_direction: Vec3,
+    block_pos: WorldPos,
+) -> HitFace {
+    let normal =
+        calculate_hit_face_normal(ray_origin, ray_direction, block_pos);
 
     if normal.x > 0.5 {
         HitFace::PosX
@@ -421,10 +461,10 @@ pub fn get_adjacent_empty_position(
     world: &World,
     chunks: &Query<&mut Chunk>,
 ) -> Option<WorldPos> {
-    println!("击中位置: {:?}", hit.position);
-    println!("击中面: {:?}", hit.face);
-    println!("面法向量: {:?}", hit.face_normal);
-    
+    debug!("hit pos: {:?}", hit.position);
+    debug!("hit face: {:?}", hit.face);
+    debug!("face normal: {:?}", hit.face_normal);
+
     let offset = match hit.face {
         HitFace::PosX => WorldPos { x: 1, y: 0, z: 0 },
         HitFace::NegX => WorldPos { x: -1, y: 0, z: 0 },
@@ -433,7 +473,7 @@ pub fn get_adjacent_empty_position(
         HitFace::PosZ => WorldPos { x: 0, y: 0, z: 1 },
         HitFace::NegZ => WorldPos { x: 0, y: 0, z: -1 },
         HitFace::None => {
-            println!("错误：击中面为None");
+            debug!("hit face: None");
             return None;
         }
     };
@@ -444,22 +484,22 @@ pub fn get_adjacent_empty_position(
         z: hit.position.z + offset.z,
     };
 
-    println!("目标放置位置: {:?}", adjacent_pos);
-    
+    debug!("target adjacent pos: {:?}", adjacent_pos);
+
     let target_chunk_pos = adjacent_pos.to_chunk_pos();
     let hit_chunk_pos = hit.position.to_chunk_pos();
-    
-    println!("击中方块的chunk: {:?}", hit_chunk_pos);
-    println!("目标位置的chunk: {:?}", target_chunk_pos);
+
+    debug!("hit chunk: {:?}", hit_chunk_pos);
+    debug!("target chunk: {:?}", target_chunk_pos);
 
     let block_at_pos = world.get_block(adjacent_pos, chunks);
-    println!("目标位置的方块类型: {:?}", block_at_pos);
-    
+    debug!("target block: {:?}", block_at_pos);
+
     if block_at_pos == BuiltBlockID::Air {
-        println!("放置成功！");
+        debug!("placement successfully");
         Some(adjacent_pos)
     } else {
-        println!("放置失败：位置被 {:?} 占用", block_at_pos);
+        debug!("placement failed: position occupied by {:?}", block_at_pos);
         None
     }
 }

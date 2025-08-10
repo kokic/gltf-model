@@ -15,16 +15,17 @@ use crate::{
 pub struct EntitySpawner;
 
 impl EntitySpawner {
-    pub fn spawn<'a, T: EntityConfig>(
+    pub fn spawn<'a, E: EntityData>(
+        entity: E,
         commands: &'a mut Commands,
         asset_server: &AssetServer,
         transform: Transform,
         animation_config: Option<&str>,
     ) -> EntityCommands<'a> {
         let mut entity_commands =
-            commands.spawn((transform, SceneRoot(T::scene(asset_server))));
+            commands.spawn((transform, SceneRoot(entity.scene(asset_server))));
 
-        if let Some(texture) = T::texture(asset_server) {
+        if let Some(texture) = entity.texture(asset_server) {
             entity_commands.insert(TextureOverride(texture));
         }
 
@@ -35,16 +36,17 @@ impl EntitySpawner {
         entity_commands
     }
 
-    pub fn spawn_child<'a, T: EntityConfig>(
+    pub fn spawn_child<'a, E: EntityData>(
+        entity: E,
         parent: &'a mut RelatedSpawnerCommands<ChildOf>,
         asset_server: &AssetServer,
         transform: Transform,
         animation_config: Option<&str>,
     ) -> EntityCommands<'a> {
         let mut entity_commands =
-            parent.spawn((transform, SceneRoot(T::scene(asset_server))));
+            parent.spawn((transform, SceneRoot(entity.scene(asset_server))));
 
-        if let Some(texture) = T::texture(asset_server) {
+        if let Some(texture) = entity.texture(asset_server) {
             entity_commands.insert(TextureOverride(texture));
         }
 
@@ -53,6 +55,20 @@ impl EntitySpawner {
         }
 
         entity_commands
+    }
+}
+
+pub trait EntityData {
+    fn entity_type() -> &'static str;
+    fn model_path() -> &'static str;
+
+    fn texture(&self, _: &AssetServer) -> Option<Handle<Image>> {
+        None
+    }
+
+    fn scene(&self, asset_server: &AssetServer) -> Handle<Scene> {
+        asset_server
+            .load(GltfAssetLabel::Scene(0).from_asset(Self::model_path()))
     }
 }
 
@@ -65,16 +81,8 @@ pub struct BlendGraphConfig {
     pub paused: bool,
 }
 
-pub trait EntityConfig {
-    fn entity_type() -> &'static str;
-    fn model_path() -> &'static str;
-    fn texture(asset_server: &AssetServer) -> Option<Handle<Image>>;
-    fn animation_configs() -> HashMap<String, AnimationConfig>;
-
-    fn scene(asset_server: &AssetServer) -> Handle<Scene> {
-        asset_server
-            .load(GltfAssetLabel::Scene(0).from_asset(Self::model_path()))
-    }
+pub trait AnimationData {
+    fn configs() -> HashMap<String, AnimationConfig>;
 
     fn blend_graph_configs() -> HashMap<String, BlendGraphConfig> {
         HashMap::new()
@@ -84,15 +92,13 @@ pub trait EntityConfig {
         "idle"
     }
 
-    fn register_animations(
+    fn register(
         asset_server: &AssetServer,
         graphs: &mut Assets<AnimationGraph>,
         animation_assets: &mut AnimationAssets,
         animation_configs: &mut HashMap<String, AnimationConfig>,
     ) {
-        info!("Registering animations for {}", Self::entity_type());
-
-        let configs = Self::animation_configs();
+        let configs = Self::configs();
         let blend_configs = Self::blend_graph_configs();
 
         for (name, config) in &configs {

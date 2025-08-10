@@ -4,8 +4,9 @@ use std::collections::HashMap;
 use crate::{
     animation::AnimationConfig,
     entity::{
-        assembly::{Head, Localizable}, humanoid::Humanoid, BlendGraphConfig,
-        EntityConfig,
+        assembly::{Head, Localizable},
+        humanoid::Humanoid,
+        AnimationData, BlendGraphConfig, EntityData,
     },
 };
 
@@ -22,7 +23,7 @@ impl Localizable<Head> for Villager {
     }
 }
 
-impl EntityConfig for Villager {
+impl EntityData for Villager {
     fn entity_type() -> &'static str {
         "villager"
     }
@@ -31,11 +32,13 @@ impl EntityConfig for Villager {
         "models/villager.gltf"
     }
 
-    fn texture(asset_server: &AssetServer) -> Option<Handle<Image>> {
+    fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
         Some(asset_server.load("images/entity/villager.png"))
     }
+}
 
-    fn animation_configs() -> HashMap<String, AnimationConfig> {
+impl AnimationData for Villager {
+    fn configs() -> HashMap<String, AnimationConfig> {
         [
             (
                 ANIMATION_GENERAL.to_string(),

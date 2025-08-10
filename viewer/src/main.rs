@@ -8,7 +8,7 @@ use viewer::{
         self,
         animation::AnimationAssets,
         assembly::{get_assembly_transform, Head, Localizable},
-        EntityConfig, EntitySpawner,
+        AnimationData, EntityData, EntitySpawner,
     },
     light,
     mob::villager::{self, Villager},
@@ -51,7 +51,8 @@ fn setup_scene(
         Some(Vec3::new(0.0, 1.0, -1.0)),
     );
 
-    EntitySpawner::spawn::<Pig>(
+    EntitySpawner::spawn(
+        Pig,
         &mut commands,
         &asset_server,
         Transform::from_xyz(2.0, 0.0, 0.0)
@@ -59,14 +60,16 @@ fn setup_scene(
         None,
     )
     .with_children(|parent| {
-        EntitySpawner::spawn_child::<Villager>(
+        EntitySpawner::spawn_child(
+            Villager, 
             parent,
             &asset_server,
             Transform::from_xyz(0.0, 0.127, 0.25),
             Some(villager::ANIMATION_RIDING),
         )
         .with_children(|parent| {
-            EntitySpawner::spawn_child::<WitchHat>(
+            EntitySpawner::spawn_child(
+                WitchHat, 
                 parent,
                 &asset_server,
                 Transform::default(),
@@ -75,7 +78,8 @@ fn setup_scene(
             .insert(PreserveOriginalMaterial);
         });
 
-        EntitySpawner::spawn_child::<WitchHat>(
+        EntitySpawner::spawn_child(
+            WitchHat, 
             parent,
             &asset_server,
             get_assembly_transform::<Pig, Head, WitchHat, Head>(),
@@ -84,7 +88,16 @@ fn setup_scene(
         .insert(PreserveOriginalMaterial);
     });
 
-    EntitySpawner::spawn::<Villager>(
+    EntitySpawner::spawn(
+        DroppingItem { item: "apple" },
+        &mut commands,
+        &asset_server,
+        Transform::from_xyz(0.0, 1.0, 0.0),
+        None,
+    );
+
+    EntitySpawner::spawn(
+        Villager, 
         &mut commands,
         &asset_server,
         Transform::from_xyz(10.0, 0.0, 0.0)
@@ -92,7 +105,8 @@ fn setup_scene(
         Some(Villager::default_animation()),
     )
     .with_children(|parent| {
-        EntitySpawner::spawn_child::<WitchHat>(
+        EntitySpawner::spawn_child(
+            WitchHat, 
             parent,
             &asset_server,
             get_assembly_transform::<Villager, Head, WitchHat, Head>(),
@@ -109,11 +123,8 @@ type RegisterAnimationsFn = fn(
     &mut HashMap<String, AnimationConfig>,
 );
 
-const REGISTER_ANIMATIONS: &[RegisterAnimationsFn] = &[
-    Villager::register_animations,
-    Pig::register_animations,
-    WitchHat::register_animations,
-];
+const REGISTER_ANIMATIONS: &[RegisterAnimationsFn] =
+    &[Villager::register, Pig::register, WitchHat::register];
 
 pub fn setup_all_entity_animations(
     mut commands: Commands,
@@ -138,9 +149,29 @@ pub fn setup_all_entity_animations(
     commands.insert_resource(AnimationConfigs(animation_configs));
 }
 
+type ItemID = &'static str;
+
+struct DroppingItem {
+    item: ItemID, 
+}
+
+impl EntityData for DroppingItem {
+    fn entity_type() -> &'static str {
+        "dropping_item"
+    }
+
+    fn model_path() -> &'static str {
+        "models/dropping.gltf"
+    }
+
+    fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
+        Some(asset_server.load(format!("images/items/{}.png", self.item)))
+    }
+}
+
 struct Pig;
 
-impl EntityConfig for Pig {
+impl EntityData for Pig {
     fn entity_type() -> &'static str {
         "pig"
     }
@@ -148,12 +179,10 @@ impl EntityConfig for Pig {
     fn model_path() -> &'static str {
         "models/with_textures/pig.gltf"
     }
+}
 
-    fn texture(_: &AssetServer) -> Option<Handle<Image>> {
-        None
-    }
-
-    fn animation_configs() -> HashMap<String, AnimationConfig> {
+impl AnimationData for Pig {
+    fn configs() -> HashMap<String, AnimationConfig> {
         HashMap::new()
     }
 }
@@ -166,7 +195,7 @@ impl Localizable<Head> for Pig {
 
 struct WitchHat;
 
-impl EntityConfig for WitchHat {
+impl EntityData for WitchHat {
     fn entity_type() -> &'static str {
         "witch_hat"
     }
@@ -174,12 +203,10 @@ impl EntityConfig for WitchHat {
     fn model_path() -> &'static str {
         "models/with_textures/witch_hat.gltf"
     }
+}
 
-    fn texture(_: &AssetServer) -> Option<Handle<Image>> {
-        None
-    }
-
-    fn animation_configs() -> HashMap<String, AnimationConfig> {
+impl AnimationData for WitchHat {
+    fn configs() -> HashMap<String, AnimationConfig> {
         [(
             "hide_nose".to_string(),
             AnimationConfig::Single {
