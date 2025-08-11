@@ -11,7 +11,7 @@ use viewer::{
         AnimationData, EntityData,
     },
     light,
-    mob::villager::{self, Villager},
+    mob::{skeleton::Skeleton, villager::{self, Villager}},
     simple_control,
 };
 
@@ -81,16 +81,51 @@ fn setup_scene(
                 get_assembly_transform::<Pig, Head, WitchHat, Head>(),
                 TextureOverride(witch_hat.texture(&asset_server)),
                 SceneRoot(witch_hat.scene(&asset_server)),
+                EntityAnimation("hide_nose".to_string()),
             ));
         });
 
     let apple = DroppingItem { item: "apple" };
-
     commands.spawn((
         Transform::from_xyz(0.0, 1.0, 0.0),
         TextureOverride(apple.texture(&asset_server)),
         SceneRoot(apple.scene(&asset_server)),
     ));
+
+    let skeleton_variant: &[&'static str] =
+        &["skeleton", "wither_skeleton", "stray"];
+
+    skeleton_variant
+        .iter()
+        .enumerate()
+        .for_each(|(i, &variant)| {
+            let skeleton = Skeleton { variant };
+            let x = 4.0 + i as f32;
+            commands
+                .spawn((
+                    Transform::from_xyz(x, 0.0, 0.0)
+                        .looking_at(Vec3::new(x, 0.0, 1.0), Vec3::Y),
+                    TextureOverride(pig.texture(&asset_server)),
+                    SceneRoot(pig.scene(&asset_server)),
+                ))
+                .with_children(|parent| {
+                    parent
+                        .spawn((
+                            TextureOverride(skeleton.texture(&asset_server)),
+                            SceneRoot(skeleton.scene(&asset_server)),
+                            EntityAnimation("riding".to_string()),
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn((
+                                TextureOverride(
+                                    witch_hat.texture(&asset_server),
+                                ),
+                                SceneRoot(witch_hat.scene(&asset_server)),
+                                EntityAnimation("hide_nose".to_string()),
+                            ));
+                        });
+                });
+        });
 }
 
 type RegisterAnimationsFn = fn(
@@ -100,8 +135,12 @@ type RegisterAnimationsFn = fn(
     &mut HashMap<String, AnimationConfig>,
 );
 
-const REGISTER_ANIMATIONS: &[RegisterAnimationsFn] =
-    &[Villager::register, Pig::register, WitchHat::register];
+const REGISTER_ANIMATIONS: &[RegisterAnimationsFn] = &[
+    Villager::register,
+    Pig::register,
+    WitchHat::register,
+    Skeleton::register,
+];
 
 pub fn setup_all_entity_animations(
     mut commands: Commands,
@@ -182,7 +221,7 @@ impl EntityData for WitchHat {
     }
 
     fn model_path() -> &'static str {
-        "models/with_textures/witch_hat.gltf"
+        "models/witch_hat.gltf"
     }
 
     fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
