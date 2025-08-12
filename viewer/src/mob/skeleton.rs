@@ -5,14 +5,14 @@ use bevy_image::Image;
 
 use crate::{
     animation::AnimationConfig,
-    entity::{AnimationData, EntityData},
+    model::{AnimationData, ModelData},
 };
 
 pub struct Skeleton {
     pub variant: &'static str,
 }
 
-impl EntityData for Skeleton {
+impl ModelData for Skeleton {
     fn entity_type() -> &'static str {
         "skeleton"
     }

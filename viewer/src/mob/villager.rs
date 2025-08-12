@@ -3,14 +3,16 @@ use std::collections::HashMap;
 
 use crate::{
     animation::AnimationConfig,
-    entity::{
+    model::{
         assembly::{Head, Localizable},
         humanoid::Humanoid,
-        AnimationData, BlendGraphConfig, EntityData,
+        AnimationData, BlendGraphConfig, ModelData,
     },
 };
 
-pub struct Villager;
+pub struct Villager {
+    pub variant: &'static str,
+}
 
 pub const ANIMATION_GENERAL: &str = "villager.general";
 pub const ANIMATION_MOVE: &str = "villager.move";
@@ -23,7 +25,7 @@ impl Localizable<Head> for Villager {
     }
 }
 
-impl EntityData for Villager {
+impl ModelData for Villager {
     fn entity_type() -> &'static str {
         "villager"
     }
@@ -33,7 +35,7 @@ impl EntityData for Villager {
     }
 
     fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
-        Some(asset_server.load("images/entity/villager.png"))
+        Some(asset_server.load(format!("images/entity/{}.png", self.variant)))
     }
 }
 

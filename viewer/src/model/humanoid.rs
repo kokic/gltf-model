@@ -1,6 +1,6 @@
 use bevy::math::Vec3;
 
-use crate::entity::assembly::{Body, Head, Localizable};
+use crate::model::assembly::{Body, Head, Localizable};
 
 pub struct Humanoid;
 

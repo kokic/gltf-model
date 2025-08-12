@@ -72,7 +72,7 @@ impl AnimationAssets {
     }
 }
 
-pub fn setup_entity_animation(
+pub fn setup_animation(
     trigger: Trigger<SceneInstanceReady>,
     mut commands: Commands,
     animation_assets: Res<AnimationAssets>,

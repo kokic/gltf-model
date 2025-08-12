@@ -4,14 +4,18 @@ use bevy::prelude::*;
 use viewer::{
     animation::{AnimationConfig, AnimationConfigs, EntityAnimation},
     components::texture_override::{self, TextureOverride},
-    entity::{
+    light,
+    mob::{
+        skeleton::Skeleton,
+        villager::{self, Villager},
+        zombie::Zombie,
+    },
+    model::{
         self,
         animation::AnimationAssets,
         assembly::{get_assembly_transform, Head, Localizable},
-        AnimationData, EntityData,
+        AnimationData, ModelData,
     },
-    light,
-    mob::{skeleton::Skeleton, villager::{self, Villager}},
     simple_control,
 };
 
@@ -29,11 +33,11 @@ fn main() {
                 simple_control::cursor_grab_system,
                 simple_control::player_movement_system,
                 simple_control::player_look_system,
-                entity::animation::update_animations,
+                model::animation::update_animations,
             ),
         )
         .add_observer(texture_override::observe)
-        .add_observer(entity::animation::setup_entity_animation)
+        .add_observer(model::animation::setup_animation)
         .run();
 }
 
@@ -51,81 +55,77 @@ fn setup_scene(
         Some(Vec3::new(0.0, 1.0, -1.0)),
     );
 
-    let pig = Pig;
-    let villager = Villager;
-    let witch_hat = WitchHat;
+    // let apple = DroppingItem { item: "apple" };
+    // commands.spawn((
+    //     Transform::from_xyz(0.0, 1.0, 0.0),
+    //     apple.default_bundle(&asset_server),
+    // ));
 
-    commands
-        .spawn((
-            Transform::from_xyz(2.0, 0.0, 0.0)
-                .looking_at(Vec3::new(2.0, 0.0, 1.0), Vec3::Y),
-            TextureOverride(pig.texture(&asset_server)),
-            SceneRoot(pig.scene(&asset_server)),
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    Transform::from_xyz(0.0, 0.127, 0.25),
-                    TextureOverride(villager.texture(&asset_server)),
-                    SceneRoot(villager.scene(&asset_server)),
-                    EntityAnimation(villager::ANIMATION_RIDING.to_string()),
-                ))
-                .with_children(|parent| {
-                    parent.spawn((
-                        Transform::default(),
-                        TextureOverride(witch_hat.texture(&asset_server)),
-                        SceneRoot(witch_hat.scene(&asset_server)),
-                    ));
-                });
-            parent.spawn((
-                get_assembly_transform::<Pig, Head, WitchHat, Head>(),
-                TextureOverride(witch_hat.texture(&asset_server)),
-                SceneRoot(witch_hat.scene(&asset_server)),
-                EntityAnimation("hide_nose".to_string()),
-            ));
-        });
+    // let skeleton_variant: &[&'static str] =
+    //     &["skeleton", "wither_skeleton", "stray"];
 
-    let apple = DroppingItem { item: "apple" };
+    // skeleton_variant
+    //     .iter()
+    //     .enumerate()
+    //     .for_each(|(i, &variant)| {
+    //         let skeleton = Skeleton { variant };
+    //         let x = 4.0 + i as f32;
+    //         commands
+    //             .spawn((
+    //                 Transform::from_xyz(x, 0.0, 0.0)
+    //                     .looking_at(Vec3::new(x, 0.0, 1.0), Vec3::Y),
+    //                 pig.default_bundle(&asset_server),
+    //             ))
+    //             .with_children(|parent| {
+    //                 parent
+    //                     .spawn((
+    //                         Transform::from_xyz(0.0, 0.127, 0.0),
+    //                         skeleton.default_bundle(&asset_server),
+    //                         EntityAnimation("riding".to_string()),
+    //                     ))
+    //                     .with_children(|parent| {
+    //                         parent.spawn((
+    //                             witch_hat.default_bundle(&asset_server),
+    //                             EntityAnimation("hide_nose".to_string()),
+    //                         ));
+    //                     });
+    //             });
+    //     });
+
+    let zombie = Zombie { variant: "zombie" };
+    let y = (32.0 + 1.0) / 16.0;
+    let z = (16.0 - 6.0) / 16.0;
+
+    let villager = Villager {
+        variant: "villager",
+    };
     commands.spawn((
-        Transform::from_xyz(0.0, 1.0, 0.0),
-        TextureOverride(apple.texture(&asset_server)),
-        SceneRoot(apple.scene(&asset_server)),
+        Transform {
+            translation: Vec3::new(-3.2, 12.0 / 16.0, 0.0),
+            rotation: Quat::from_rotation_z(180.0_f32.to_radians())
+                * Quat::from_rotation_x(90.0_f32.to_radians())
+                * Quat::from_rotation_y(90.0_f32.to_radians()),
+            scale: Vec3::ONE,
+        },
+        villager.default_bundle(&asset_server),
+        EntityAnimation(villager::ANIMATION_GENERAL.to_string()),
     ));
 
-    let skeleton_variant: &[&'static str] =
-        &["skeleton", "wither_skeleton", "stray"];
+    commands.spawn((
+        Transform::from_xyz(-2.0, y, z)
+            .looking_at(Vec3::new(-2.0, y, 1.0), Vec3::Y)
+            .with_scale(Vec3::splat(0.5)),
+        zombie.default_bundle(&asset_server),
+        EntityAnimation("baby_riding".to_string()),
+    ));
 
-    skeleton_variant
-        .iter()
-        .enumerate()
-        .for_each(|(i, &variant)| {
-            let skeleton = Skeleton { variant };
-            let x = 4.0 + i as f32;
-            commands
-                .spawn((
-                    Transform::from_xyz(x, 0.0, 0.0)
-                        .looking_at(Vec3::new(x, 0.0, 1.0), Vec3::Y),
-                    TextureOverride(pig.texture(&asset_server)),
-                    SceneRoot(pig.scene(&asset_server)),
-                ))
-                .with_children(|parent| {
-                    parent
-                        .spawn((
-                            TextureOverride(skeleton.texture(&asset_server)),
-                            SceneRoot(skeleton.scene(&asset_server)),
-                            EntityAnimation("riding".to_string()),
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                TextureOverride(
-                                    witch_hat.texture(&asset_server),
-                                ),
-                                SceneRoot(witch_hat.scene(&asset_server)),
-                                EntityAnimation("hide_nose".to_string()),
-                            ));
-                        });
-                });
-        });
+    let mutant_zombie = MutantZombie;
+
+    commands.spawn((
+        Transform::from_xyz(-2.0, 0.0, 0.0)
+            .looking_at(Vec3::new(-2.0, 0.0, 1.0), Vec3::Y),
+        mutant_zombie.default_bundle(&asset_server),
+    ));
 }
 
 type RegisterAnimationsFn = fn(
@@ -140,6 +140,8 @@ const REGISTER_ANIMATIONS: &[RegisterAnimationsFn] = &[
     Pig::register,
     WitchHat::register,
     Skeleton::register,
+    Squid::register,
+    Zombie::register,
 ];
 
 pub fn setup_all_entity_animations(
@@ -165,29 +167,78 @@ pub fn setup_all_entity_animations(
     commands.insert_resource(AnimationConfigs(animation_configs));
 }
 
-type ItemID = &'static str;
+struct MutantZombie;
 
-struct DroppingItem {
-    item: ItemID,
-}
-
-impl EntityData for DroppingItem {
+impl ModelData for MutantZombie {
     fn entity_type() -> &'static str {
-        "dropping_item"
+        "mutant_zombie"
     }
 
     fn model_path() -> &'static str {
-        "models/dropping.gltf"
+        "models/mutant_zombie.gltf"
     }
 
     fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
-        Some(asset_server.load(format!("images/items/{}.png", self.item)))
+        Some(asset_server.load("images/entity/mutant_zombie.png"))
+    }
+}
+
+struct Bed {
+    pub variant: &'static str,
+}
+
+impl ModelData for Bed {
+    fn entity_type() -> &'static str {
+        "bed"
+    }
+
+    fn model_path() -> &'static str {
+        "models/bed.gltf"
+    }
+
+    fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
+        Some(
+            asset_server
+                .load(format!("images/entity/bed/{}.png", self.variant)),
+        )
+    }
+}
+
+struct Squid;
+
+impl ModelData for Squid {
+    fn entity_type() -> &'static str {
+        "squid"
+    }
+
+    fn model_path() -> &'static str {
+        "models/squid.gltf"
+    }
+
+    fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
+        Some(asset_server.load("images/entity/squid.png"))
+    }
+}
+
+impl AnimationData for Squid {
+    fn configs() -> HashMap<String, AnimationConfig> {
+        [(
+            "move".to_string(),
+            AnimationConfig::Single {
+                path: format!("{}#Animation0", Self::model_path()),
+                speed: 1.0,
+                repeat: true,
+                paused: false,
+            },
+        )]
+        .into_iter()
+        .collect()
     }
 }
 
 struct Pig;
 
-impl EntityData for Pig {
+impl ModelData for Pig {
     fn entity_type() -> &'static str {
         "pig"
     }
@@ -215,7 +266,7 @@ impl Localizable<Head> for Pig {
 
 struct WitchHat;
 
-impl EntityData for WitchHat {
+impl ModelData for WitchHat {
     fn entity_type() -> &'static str {
         "witch_hat"
     }

@@ -17,6 +17,7 @@ pub mod gui_atlas;
 pub mod animation;
 pub mod block;
 pub mod chunk;
+pub mod model;
 pub mod entity;
 pub mod mob;
 
