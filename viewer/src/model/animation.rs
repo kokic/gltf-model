@@ -19,7 +19,7 @@ use bevy::{
     scene::SceneInstanceReady,
 };
 
-use crate::animation::{AnimationConfig, AnimationConfigs, EntityAnimation};
+use crate::animation::{AnimationConfig, AnimationConfigs, ModelAnimation};
 
 #[derive(Resource)]
 pub struct AnimationAssets {
@@ -79,9 +79,9 @@ pub fn setup_animation(
     animation_configs: Res<AnimationConfigs>,
     mut players: Query<
         (Entity, &mut AnimationPlayer),
-        Without<EntityAnimation>,
+        Without<ModelAnimation>,
     >,
-    entity_animation: Query<&EntityAnimation>,
+    entity_animation: Query<&ModelAnimation>,
     children: Query<&Children>,
 ) {
     let Ok(entity_animation) = entity_animation.get(trigger.target()) else {
@@ -132,7 +132,7 @@ pub fn update_animations(
     animation_assets: Res<AnimationAssets>,
     animation_configs: Res<AnimationConfigs>,
     mut players: Query<
-        (Entity, &mut AnimationPlayer, &EntityAnimation),
+        (Entity, &mut AnimationPlayer, &ModelAnimation),
         Without<AnimationTransitions>,
     >,
 ) {

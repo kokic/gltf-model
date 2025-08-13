@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 use viewer::{
-    animation::{AnimationConfig, AnimationConfigs, EntityAnimation},
+    animation::{AnimationConfig, AnimationConfigs, ModelAnimation},
     components::texture_override::{self, TextureOverride},
     light,
     mob::{
@@ -92,40 +92,61 @@ fn setup_scene(
     //             });
     //     });
 
-    let zombie = Zombie { variant: "zombie" };
-    let y = (32.0 + 1.0) / 16.0;
-    let z = (16.0 - 6.0) / 16.0;
+    let oak = Oak;
+    let pig = Pig;
 
-    let villager = Villager {
-        variant: "villager",
-    };
+    commands.spawn((
+        Transform::from_xyz(0.0, 1.0, 0.0)
+            .looking_at(Vec3::new(0.0, 1.0, 1.0), Vec3::Y),
+        oak.default_bundle(&asset_server),
+        // ModelAnimation("idle".to_string()),
+    ));
+
     commands.spawn((
         Transform {
-            translation: Vec3::new(-3.2, 12.0 / 16.0, 0.0),
-            rotation: Quat::from_rotation_z(180.0_f32.to_radians())
-                * Quat::from_rotation_x(90.0_f32.to_radians())
-                * Quat::from_rotation_y(90.0_f32.to_radians()),
+            translation: Vec3::new(0.5, 2.0, 0.0),
+            rotation: Quat::from_rotation_y(90.0_f32.to_radians())
+                * Quat::from_rotation_x(90.0_f32.to_radians()),
             scale: Vec3::ONE,
         },
-        villager.default_bundle(&asset_server),
-        EntityAnimation(villager::ANIMATION_GENERAL.to_string()),
+        pig.default_bundle(&asset_server),
     ));
 
-    commands.spawn((
-        Transform::from_xyz(-2.0, y, z)
-            .looking_at(Vec3::new(-2.0, y, 1.0), Vec3::Y)
-            .with_scale(Vec3::splat(0.5)),
-        zombie.default_bundle(&asset_server),
-        EntityAnimation("baby_riding".to_string()),
-    ));
+    // let zombie = Zombie { variant: "zombie" };
+    // let y = (32.0 + 1.0) / 16.0;
+    // let z = (16.0 - 6.0) / 16.0;
 
-    let mutant_zombie = MutantZombie;
+    // let villager = Villager {
+    //     variant: "villager",
+    // };
+    // commands.spawn((
+    //     Transform {
+    //         translation: Vec3::new(-3.2, 12.0 / 16.0, 0.0),
+    //         rotation: Quat::from_rotation_z(180.0_f32.to_radians())
+    //             * Quat::from_rotation_x(90.0_f32.to_radians())
+    //             * Quat::from_rotation_y(90.0_f32.to_radians()),
+    //         scale: Vec3::ONE,
+    //     },
+    //     villager.default_bundle(&asset_server),
+    //     ModelAnimation(villager::ANIMATION_GENERAL.to_string()),
+    // ));
 
-    commands.spawn((
-        Transform::from_xyz(-2.0, 0.0, 0.0)
-            .looking_at(Vec3::new(-2.0, 0.0, 1.0), Vec3::Y),
-        mutant_zombie.default_bundle(&asset_server),
-    ));
+    // commands.spawn((
+    //     Transform::from_xyz(-2.0, y, z)
+    //         .looking_at(Vec3::new(-2.0, y, 1.0), Vec3::Y)
+    //         .with_scale(Vec3::splat(0.5)),
+    //     zombie.default_bundle(&asset_server),
+    //     ModelAnimation("baby_riding".to_string()),
+    // ));
+
+    // let mutant_zombie = MutantZombie;
+
+    // commands.spawn((
+    //     Transform::from_xyz(-2.0, 0.0, 0.0)
+    //         .looking_at(Vec3::new(-2.0, 0.0, 1.0), Vec3::Y),
+    //     mutant_zombie.default_bundle(&asset_server),
+    // ));
+    
 }
 
 type RegisterAnimationsFn = fn(
@@ -142,6 +163,7 @@ const REGISTER_ANIMATIONS: &[RegisterAnimationsFn] = &[
     Skeleton::register,
     Squid::register,
     Zombie::register,
+    Oak::register,
 ];
 
 pub fn setup_all_entity_animations(
@@ -165,6 +187,38 @@ pub fn setup_all_entity_animations(
 
     commands.insert_resource(animation_assets);
     commands.insert_resource(AnimationConfigs(animation_configs));
+}
+
+struct Oak;
+
+impl ModelData for Oak {
+    fn entity_type() -> &'static str {
+        "oak"
+    }
+
+    fn model_path() -> &'static str {
+        "models/oak.gltf"
+    }
+
+    fn texture(&self, asset_server: &AssetServer) -> Option<Handle<Image>> {
+        Some(asset_server.load("images/entity/oak.png"))
+    }
+}
+
+impl AnimationData for Oak {
+    fn configs() -> HashMap<String, AnimationConfig> {
+        [(
+            "idle".to_string(),
+            AnimationConfig::Single {
+                path: format!("{}#Animation0", Self::model_path()),
+                speed: 1.0,
+                repeat: true,
+                paused: false,
+            },
+        )]
+        .into_iter()
+        .collect()
+    }
 }
 
 struct MutantZombie;

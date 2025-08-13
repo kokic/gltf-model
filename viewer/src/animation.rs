@@ -19,9 +19,9 @@ pub enum AnimationConfig {
 }
 
 #[derive(Component, Clone)]
-pub struct EntityAnimation(pub String);
+pub struct ModelAnimation(pub String);
 
-impl EntityAnimation {
+impl ModelAnimation {
     pub fn new(config_name: &str) -> Self {
         Self(config_name.to_string())
     }
